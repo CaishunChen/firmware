@@ -5,7 +5,7 @@
 ;
 [subrepo]
 	remote = https://github.com/spark/firmware.git
-	branch = release/v0.7.0-rc.6
-	commit = 988279be981de213f1b802198ebff439c42c46fa
-	parent = 9de32b5a42914c31052307b084a1929eaa408372
+	branch = release/v0.8.0-rc.2
+	commit = c3e7fe6d4f78cfa661d6c99e4ea96560588003ee
+	parent = 5006c8877a910ec147b5440194b1057e44e9c3ec
 	cmdver = 0.3.1
