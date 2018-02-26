@@ -101,6 +101,22 @@ void setup() {
     tcp_state = tcp_state_enum::ALLOWED_TO_RESTART;
 }
 
+void manageCloudConnection(){
+    // Only try to connect to the cloud once per hour, because it will reset the WiFi stack on failure
+    const system_tick_t cloudConnectAttemptInterval = 30000; // 30s in milliseconds
+    system_tick_t lastCloudConnect = 0UL - cloudConnectAttemptInterval; // try immediately
+
+    if(!Particle.connected()){
+        if(timeSince(lastCloudConnect) >= cloudConnectAttemptInterval){
+            lastCloudConnect = millis();
+            Particle.connect();
+        }
+        else{
+            Particle.disconnect();
+        }
+    }
+}
+
 void loop() {
     static system_tick_t last_update = millis();
     static system_tick_t lastLedToggle = millis();
@@ -198,4 +214,6 @@ void loop() {
         ledOn = !ledOn;
         digitalWrite(LED_PIN, ledOn);
     }
+
+    manageCloudConnection();
 }
