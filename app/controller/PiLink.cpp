@@ -52,6 +52,11 @@ private:
     TCPClient tcpClient;
     Stream * currentStream = &Serial;
     bool tcpServerRunning = false;
+    ticks_seconds_t lastReceive = 0;
+    ticks_seconds_t lastReset = 0;
+    const ticks_seconds_t TCP_RESTART_ON_NO_RECEIVE_INTERVAL = 700;
+    const ticks_seconds_t WIFI_RESTART_ON_NO_RECEIVE_INTERVAL = 1900;
+
 
 public:
     void print(char c) {
@@ -78,13 +83,11 @@ public:
         tcpServer.stop();
         tcpClient.stop();
         tcpServerRunning = false;
-        Serial.print("TCP server stopped\n");
     }
 
     void startTcp(){
         tcpServer.begin();
         tcpServerRunning = true;
-        Serial.print("TCP server started\n");
     }
 
     /**
@@ -102,7 +105,30 @@ public:
             currentStream = &Serial;
         }
         else{
-            if(!WiFi.ready() || WiFi.RSSI() >= 0){
+            ticks_seconds_t sinceReceive = ticks.timeSinceSeconds(lastReceive);
+            ticks_seconds_t sinceReset = ticks.timeSinceSeconds(lastReset);
+            ticks_seconds_t now = ticks.seconds();
+            if(sinceReceive > TCP_RESTART_ON_NO_RECEIVE_INTERVAL && sinceReset > TCP_RESTART_ON_NO_RECEIVE_INTERVAL){
+                // no receive for the past 10 minutes
+                if(tcpServerRunning){
+                    stopTcp();
+                    lastReset = now;
+                    // restart will be handled next time this function is called if WiFi is ready.
+                }
+                if(sinceReceive > WIFI_RESTART_ON_NO_RECEIVE_INTERVAL){
+                    // Restarting TCP didn't help
+                    stopTcp();
+                    if(!WiFi.connecting()){
+                        Particle.disconnect();
+                        WiFi.off();
+                        WiFi.on();
+                        Particle.connect();
+                    }
+                    lastReceive = now; // reset last receive to delay next restart
+                    lastReset = now;
+                }
+            }
+            else if(!WiFi.ready() || WiFi.RSSI() >= 0){
                 // WiFi is in error state, stop TCP server
                 if(tcpServerRunning){
                     stopTcp();
@@ -125,6 +151,7 @@ public:
 					available = tcpClient.available();
 					if(available > 0) {
 						currentStream = &tcpClient;
+						lastReceive = now;
 					}
 				}
 			}
